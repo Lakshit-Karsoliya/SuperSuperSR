@@ -1,66 +1,50 @@
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
-from .engine.srcnn import EngineSRCNN
 
+from pathlib import Path
+import shutil
+import tempfile
+import uuid
 
+from fastapi import FastAPI, UploadFile, File
+from fastapi.responses import FileResponse
 
-app = FastAPI(
-    title="SuperSuperSR",
-    description="API for Super Resolution Models",
-    version="1.0.0"
-)
+from engine.srcnn import EngineSRCNN
 
-
-# --------------------------------------------------
-# HOME
-# --------------------------------------------------
-
-@app.get("/", response_class=HTMLResponse)
-async def home():
-
-    return """
-    <html>
-        <body>
-            <h1>SuperSuperSR</h1>
-            <p>Server running successfully</p>
-        </body>
-    </html>
-    """
-
-
-# --------------------------------------------------
-# REQUEST MODEL
-# --------------------------------------------------
-
-class SRCNNRequest(BaseModel):
-
-    input_image: str
-    output_image: str
-
-
-# --------------------------------------------------
-# ENGINE
-# --------------------------------------------------
+app = FastAPI()
 
 srcnn_engine = EngineSRCNN()
 
 
-# --------------------------------------------------
-# API
-# --------------------------------------------------
+def cleanup(*files):
+    for file in files:
+        path = Path(file)
+        if path.exists():
+            path.unlink()
 
-@app.post(
-    "/api/v1/srcnn/",
-    summary="Run SRCNN Super Resolution",
-    description="Upscales image using SRCNN model",
-    tags=["Convolution Based SR"]
-)
-async def srcnn(data: SRCNNRequest):
 
-    result = await srcnn_engine.execute(
-        input_image=data.input_image,
-        output_image=data.output_image
+@app.post("/api/v1/srcnn/")
+def srcnn(file: UploadFile = File(...)):
+    temp_dir = Path(tempfile.gettempdir()) / "supersupersr"
+    temp_dir.mkdir(exist_ok=True)
+
+    uid = uuid.uuid4().hex
+
+    input_path = temp_dir / f"{uid}_{file.filename}"
+    output_path = temp_dir / f"{uid}_output.png"
+
+    with input_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    result = srcnn_engine.execute(
+        input_image=str(input_path),
+        output_image=str(output_path)
     )
 
-    return result
+    if not result:
+        cleanup(str(input_path))
+        return {"status": "failed"}
+
+    return FileResponse(
+        path=str(output_path),
+        media_type="image/png",
+        filename="super_resolution.png",
+    )
