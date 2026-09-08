@@ -8,10 +8,12 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse
 
 from engine.srcnn import EngineSRCNN
+from engine.fsrcnn import EngineFSRCNN
 
 app = FastAPI()
 
 srcnn_engine = EngineSRCNN()
+fsrcnn_engine = EngineFSRCNN()
 
 
 def cleanup(*files):
@@ -25,26 +27,43 @@ def cleanup(*files):
 def srcnn(file: UploadFile = File(...)):
     temp_dir = Path(tempfile.gettempdir()) / "supersupersr"
     temp_dir.mkdir(exist_ok=True)
-
     uid = uuid.uuid4().hex
-
     input_path = temp_dir / f"{uid}_{file.filename}"
     output_path = temp_dir / f"{uid}_output.png"
-
     with input_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-
     result = srcnn_engine.execute(
         input_image=str(input_path),
         output_image=str(output_path)
     )
-
     if not result:
         cleanup(str(input_path))
         return {"status": "failed"}
-
     return FileResponse(
         path=str(output_path),
         media_type="image/png",
-        filename="super_resolution.png",
+        filename="super_resolution_srcnn.png",
+    )
+
+
+@app.post("/api/v1/fsrcnn/")
+def fsrcnn(file:UploadFile=File(...)):
+    temp_dir = Path(tempfile.gettempdir()) / "supersupersr"
+    temp_dir.mkdir(exist_ok=True)
+    uid = uuid.uuid4().hex
+    input_path = temp_dir / f"{uid}_{file.filename}"
+    output_path = temp_dir / f"{uid}_output.png"
+    with input_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    result = fsrcnn_engine.execute(
+        input_image=str(input_path),
+        output_image=str(output_path)
+    )
+    if not result:
+        cleanup(str(input_path))
+        return {"status": "failed"}
+    return FileResponse(
+        path=str(output_path),
+        media_type="image/png",
+        filename="super_resolution_fsrcnn.png",
     )

@@ -7,11 +7,19 @@
 
 ## Currently Supported Models
 
-* ✅ SRCNN (Super-Resolution Convolutional Neural Network)
+* SRCNN 
+* FSRCNN 
 
 > More super-resolution models will be added in future releases.
 
+## Results 
+**original left** 
+**upscaled right**
 
+<div align="center">SRCNN</div>
+<div align="center"><img width=300px src='assets/srcnn_results.png'/></div>
+<div align="center">FSRCNN</div>
+<div align="center"><img width=300px src='assets/fsrcnn_results.png'/></div>
 
 ---
 
